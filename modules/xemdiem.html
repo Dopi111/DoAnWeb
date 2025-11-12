@@ -1,0 +1,95 @@
+<h1 class="h3 fw-bold mb-4">Kết quả học tập</h1>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body">
+        <h5 class="card-title mb-3">
+            <i class="bi bi-trophy me-2 text-warning"></i>
+            Bảng điểm tổng hợp
+        </h5>
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th scope="col">Khóa học</th>
+                        <th scope="col">Chuyên cần</th>
+                        <th scope="col">Giữa kỳ</th>
+                        <th scope="col">Cuối kỳ</th>
+                        <th scope="col">Tổng kết</th>
+                        <th scope="col">Xếp loại</th>
+                        <th scope="col">Nhận xét</th>
+                    </tr>
+                </thead>
+                <tbody id="diemTableBody">
+                    <tr>
+                        <td colspan="7" class="text-center">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2">Đang tải dữ liệu...</p>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+// Load điểm của học sinh
+async function loadDiem() {
+    try {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const result = await API.Diem.getByHocSinh(user.id);
+
+        const tbody = document.getElementById('diemTableBody');
+
+        if (result.success) {
+            if (result.data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Chưa có điểm nào</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = result.data.map(diem => {
+                const xepLoai = diem.XepLoai || 'Chưa có';
+                const badgeClass = xepLoai === 'Xuất sắc' ? 'success' :
+                                  xepLoai === 'Giỏi' ? 'primary' :
+                                  xepLoai === 'Khá' ? 'info' :
+                                  xepLoai === 'Trung bình' ? 'warning' : 'secondary';
+
+                return `
+                    <tr>
+                        <td><strong>${diem.TenKhoaHoc}</strong></td>
+                        <td><span class="badge bg-info">${diem.DiemChuyenCan || '-'}</span></td>
+                        <td><span class="badge bg-warning">${diem.DiemGiuaKy || '-'}</span></td>
+                        <td><span class="badge bg-danger">${diem.DiemCuoiKy || '-'}</span></td>
+                        <td><strong class="text-primary">${diem.DiemTongKet || '-'}</strong></td>
+                        <td><span class="badge bg-${badgeClass}">${xepLoai}</span></td>
+                        <td>
+                            ${diem.NhanXet ?
+                                `<button class="btn btn-sm btn-outline-secondary" onclick="showComment('${diem.NhanXet}')">
+                                    <i class="bi bi-chat-text"></i> Xem
+                                </button>` :
+                                '<span class="text-muted">-</span>'
+                            }
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        } else {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Lỗi: ' + result.message + '</td></tr>';
+        }
+    } catch (error) {
+        console.error('Error loading scores:', error);
+        document.getElementById('diemTableBody').innerHTML =
+            '<tr><td colspan="7" class="text-center text-danger">Lỗi kết nối đến server</td></tr>';
+    }
+}
+
+// Show comment in modal
+function showComment(comment) {
+    alert('Nhận xét của giáo viên:\n\n' + comment);
+}
+
+// Init
+loadDiem();
+</script>

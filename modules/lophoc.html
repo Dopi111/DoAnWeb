@@ -1,0 +1,274 @@
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 fw-bold m-0">Quản lý Lớp học</h1>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addClassModal">
+        <i class="bi bi-plus-circle me-1"></i> Tạo lớp mới
+    </button>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped align-middle">
+                <thead>
+                    <tr>
+                        <th scope="col">Tên lớp</th>
+                        <th scope="col">Khóa học</th>
+                        <th scope="col">Giáo viên</th>
+                        <th scope="col">Sĩ số</th>
+                        <th scope="col">Lịch học</th>
+                        <th scope="col">Trạng thái</th>
+                        <th scope="col">Hành động</th>
+                    </tr>
+                </thead>
+                <tbody id="lopHocTable">
+                    <tr>
+                        <td colspan="7" class="text-center">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2">Đang tải dữ liệu...</p>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Tạo lớp mới -->
+<div class="modal fade" id="addClassModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Tạo lớp học mới</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="addClassForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Khóa học *</label>
+                        <select class="form-select" id="khoaHocSelect" required>
+                            <option value="">-- Chọn khóa học --</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Tên lớp *</label>
+                        <input type="text" class="form-control" id="tenLop" placeholder="Ví dụ: IELTS 6.0+ Tối T2-4-6" required>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Phòng học</label>
+                                <input type="text" class="form-control" id="phongHoc" placeholder="Ví dụ: P301">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Sĩ số tối đa</label>
+                                <input type="number" class="form-control" id="siSoToiDa" value="12" min="1">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Ngày bắt đầu</label>
+                                <input type="date" class="form-control" id="ngayBatDau">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Ngày kết thúc</label>
+                                <input type="date" class="form-control" id="ngayKetThuc">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Giáo viên phụ trách</label>
+                        <select class="form-select" id="giaoVienSelect">
+                            <option value="">-- Chọn giáo viên --</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Đóng</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save me-1"></i> Lưu và tạo
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Xem danh sách học sinh -->
+<div class="modal fade" id="viewStudentsModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Danh sách học sinh</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="studentsList">
+                    <div class="text-center p-4">
+                        <div class="spinner-border text-primary"></div>
+                        <p class="mt-2">Đang tải...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Load dữ liệu lớp học
+async function loadLopHoc() {
+    try {
+        const result = await API.LopHoc.getAll();
+
+        if (result.success) {
+            const tbody = document.getElementById('lopHocTable');
+            const data = result.data;
+
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Chưa có lớp học nào</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = data.map(lop => {
+                const statusClass = lop.TrangThai === 'DangHoc' ? 'success' : lop.TrangThai === 'ChuaBatDau' ? 'warning' : 'secondary';
+                const statusText = lop.TrangThai === 'DangHoc' ? 'Đang học' : lop.TrangThai === 'ChuaBatDau' ? 'Chưa bắt đầu' : 'Đã kết thúc';
+
+                return `
+                    <tr>
+                        <td><strong>${lop.TenLop}</strong></td>
+                        <td>${lop.TenKhoaHoc}</td>
+                        <td>${lop.GiaoVien || '<span class="text-muted">Chưa phân công</span>'}</td>
+                        <td><span class="badge bg-info">${lop.SiSoHienTai}/${lop.SiSoToiDa}</span></td>
+                        <td>${lop.LichHoc || 'Chưa có'}</td>
+                        <td><span class="badge bg-${statusClass}">${statusText}</span></td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" title="Xem danh sách" onclick="viewStudents(${lop.MaLop})">
+                                <i class="bi bi-people-fill"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary" title="Chỉnh sửa" onclick="editLop(${lop.MaLop})">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" title="Xóa" onclick="deleteLop(${lop.MaLop})">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        } else {
+            document.getElementById('lopHocTable').innerHTML =
+                '<tr><td colspan="7" class="text-center text-danger">Lỗi tải dữ liệu: ' + result.message + '</td></tr>';
+        }
+    } catch (error) {
+        console.error('Error loading classes:', error);
+        document.getElementById('lopHocTable').innerHTML =
+            '<tr><td colspan="7" class="text-center text-danger">Lỗi kết nối đến server</td></tr>';
+    }
+}
+
+// Xem danh sách học sinh
+async function viewStudents(maLop) {
+    const modal = new bootstrap.Modal(document.getElementById('viewStudentsModal'));
+    modal.show();
+
+    const container = document.getElementById('studentsList');
+    container.innerHTML = '<div class="text-center p-4"><div class="spinner-border text-primary"></div><p class="mt-2">Đang tải...</p></div>';
+
+    try {
+        const result = await API.LopHoc.getHocSinh(maLop);
+
+        if (result.success) {
+            if (result.data.length === 0) {
+                container.innerHTML = '<p class="text-center text-muted">Chưa có học sinh nào trong lớp</p>';
+                return;
+            }
+
+            container.innerHTML = `
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>STT</th>
+                            <th>Họ tên</th>
+                            <th>Email</th>
+                            <th>SĐT</th>
+                            <th>Trạng thái</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${result.data.map((hs, index) => `
+                            <tr>
+                                <td>${index + 1}</td>
+                                <td>${hs.HoTen}</td>
+                                <td>${hs.Email}</td>
+                                <td>${hs.SoDienThoai || '-'}</td>
+                                <td><span class="badge bg-success">${hs.TrangThai}</span></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        } else {
+            container.innerHTML = '<p class="text-center text-danger">Lỗi: ' + result.message + '</p>';
+        }
+    } catch (error) {
+        container.innerHTML = '<p class="text-center text-danger">Lỗi kết nối đến server</p>';
+    }
+}
+
+// Edit lớp
+function editLop(maLop) {
+    alert('Chức năng đang được phát triển. Mã lớp: ' + maLop);
+}
+
+// Delete lớp
+async function deleteLop(maLop) {
+    if (!confirm('Bạn có chắc muốn xóa lớp học này?')) return;
+
+    try {
+        // Call delete API here
+        alert('Chức năng đang được phát triển');
+    } catch (error) {
+        alert('Lỗi: ' + error.message);
+    }
+}
+
+// Submit form tạo lớp mới
+document.getElementById('addClassForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const data = {
+        ten_lop: document.getElementById('tenLop').value,
+        ma_khoa_hoc: document.getElementById('khoaHocSelect').value,
+        phong_hoc: document.getElementById('phongHoc').value,
+        si_so_toi_da: parseInt(document.getElementById('siSoToiDa').value),
+        ngay_bat_dau: document.getElementById('ngayBatDau').value,
+        ngay_ket_thuc: document.getElementById('ngayKetThuc').value,
+        ma_giao_vien: document.getElementById('giaoVienSelect').value || null
+    };
+
+    try {
+        const result = await API.LopHoc.create(data);
+
+        if (result.success) {
+            alert('Tạo lớp học thành công!');
+            bootstrap.Modal.getInstance(document.getElementById('addClassModal')).hide();
+            document.getElementById('addClassForm').reset();
+            loadLopHoc(); // Reload data
+        } else {
+            alert('Lỗi: ' + result.message);
+        }
+    } catch (error) {
+        alert('Lỗi kết nối đến server');
+    }
+});
+
+// Load initial data
+loadLopHoc();
+</script>
