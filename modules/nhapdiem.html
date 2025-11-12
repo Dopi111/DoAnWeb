@@ -1,0 +1,202 @@
+<h1 class="h3 fw-bold mb-4">Nhập điểm học viên</h1>
+
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <p class="fw-bold">Chọn lớp để nhập điểm</p>
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label">Chọn lớp</label>
+                <select class="form-select" id="selectLop">
+                    <option value="">-- Chọn lớp --</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Loại điểm</label>
+                <select class="form-select" id="loaiDiem">
+                    <option value="chuyen_can">Điểm chuyên cần</option>
+                    <option value="giua_ky">Điểm giữa kỳ</option>
+                    <option value="cuoi_ky">Điểm cuối kỳ</option>
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button class="btn btn-primary w-100" onclick="loadDanhSachDiem()">
+                    <i class="bi bi-download me-1"></i> Tải danh sách
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm" id="diemTable" style="display: none;">
+    <div class="card-body">
+        <h5 class="card-title mb-3" id="titleLop">Danh sách lớp</h5>
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead>
+                    <tr>
+                        <th scope="col">STT</th>
+                        <th scope="col">Họ tên</th>
+                        <th scope="col">Email</th>
+                        <th scope="col" style="width: 120px;">Chuyên cần</th>
+                        <th scope="col" style="width: 120px;">Giữa kỳ</th>
+                        <th scope="col" style="width: 120px;">Cuối kỳ</th>
+                        <th scope="col" style="width: 200px;">Nhận xét</th>
+                    </tr>
+                </thead>
+                <tbody id="diemTableBody">
+                </tbody>
+            </table>
+        </div>
+        <div class="text-end mt-3">
+            <button class="btn btn-secondary me-2" onclick="resetForm()">
+                <i class="bi bi-x-circle me-1"></i> Hủy
+            </button>
+            <button class="btn btn-primary btn-lg" onclick="saveDiem()">
+                <i class="bi bi-save me-1"></i> Lưu lại điểm
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentDiemData = [];
+
+// Load danh sách lớp
+async function loadDanhSachLop() {
+    try {
+        const result = await API.LopHoc.getAll();
+        if (result.success) {
+            const select = document.getElementById('selectLop');
+            select.innerHTML = '<option value="">-- Chọn lớp --</option>' +
+                result.data.map(lop => `<option value="${lop.MaLop}">${lop.TenLop}</option>`).join('');
+        }
+    } catch (error) {
+        console.error('Error loading classes:', error);
+    }
+}
+
+// Load danh sách điểm
+async function loadDanhSachDiem() {
+    const maLop = document.getElementById('selectLop').value;
+
+    if (!maLop) {
+        alert('Vui lòng chọn lớp');
+        return;
+    }
+
+    try {
+        const result = await API.Diem.getByLop(maLop);
+
+        if (result.success) {
+            currentDiemData = result.data;
+            renderDiemTable();
+            document.getElementById('diemTable').style.display = 'block';
+        } else {
+            alert('Lỗi: ' + result.message);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Lỗi kết nối đến server');
+    }
+}
+
+// Render bảng điểm
+function renderDiemTable() {
+    const tbody = document.getElementById('diemTableBody');
+    const lopSelect = document.getElementById('selectLop');
+    document.getElementById('titleLop').textContent = 'Danh sách lớp: ' + lopSelect.options[lopSelect.selectedIndex].text;
+
+    if (currentDiemData.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Chưa có học sinh nào</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = currentDiemData.map((hs, index) => `
+        <tr>
+            <td>${index + 1}</td>
+            <td>${hs.HoTen}</td>
+            <td>${hs.Email}</td>
+            <td>
+                <input type="number" class="form-control form-control-sm"
+                       min="0" max="10" step="0.5"
+                       value="${hs.DiemChuyenCan || ''}"
+                       data-student="${hs.MaHocSinh}"
+                       data-type="chuyen_can">
+            </td>
+            <td>
+                <input type="number" class="form-control form-control-sm"
+                       min="0" max="10" step="0.5"
+                       value="${hs.DiemGiuaKy || ''}"
+                       data-student="${hs.MaHocSinh}"
+                       data-type="giua_ky">
+            </td>
+            <td>
+                <input type="number" class="form-control form-control-sm"
+                       min="0" max="10" step="0.5"
+                       value="${hs.DiemCuoiKy || ''}"
+                       data-student="${hs.MaHocSinh}"
+                       data-type="cuoi_ky">
+            </td>
+            <td>
+                <input type="text" class="form-control form-control-sm"
+                       placeholder="Nhận xét..."
+                       data-student="${hs.MaHocSinh}"
+                       data-type="nhan_xet">
+            </td>
+        </tr>
+    `).join('');
+}
+
+// Lưu điểm
+async function saveDiem() {
+    const inputs = document.querySelectorAll('#diemTableBody input');
+    const updates = {};
+
+    // Collect all changes
+    inputs.forEach(input => {
+        const studentId = input.dataset.student;
+        const type = input.dataset.type;
+        const value = input.value;
+
+        if (!updates[studentId]) {
+            updates[studentId] = {};
+        }
+
+        updates[studentId][type] = value;
+    });
+
+    // Save to server
+    let successCount = 0;
+    for (const [studentId, data] of Object.entries(updates)) {
+        try {
+            const result = await API.Diem.create({
+                ma_hoc_sinh: parseInt(studentId),
+                ma_khoa_hoc: 2, // Get from selected class
+                diem_chuyen_can: data.chuyen_can || null,
+                diem_giua_ky: data.giua_ky || null,
+                diem_cuoi_ky: data.cuoi_ky || null,
+                nhan_xet: data.nhan_xet || ''
+            });
+
+            if (result.success) {
+                successCount++;
+            }
+        } catch (error) {
+            console.error('Error saving score for student:', studentId, error);
+        }
+    }
+
+    alert(`Đã lưu điểm thành công cho ${successCount} học sinh!`);
+    loadDanhSachDiem(); // Reload
+}
+
+// Reset form
+function resetForm() {
+    document.getElementById('diemTable').style.display = 'none';
+    document.getElementById('selectLop').value = '';
+    currentDiemData = [];
+}
+
+// Init
+loadDanhSachLop();
+</script>
